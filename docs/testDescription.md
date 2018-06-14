@@ -121,3 +121,103 @@ title: NJOY2016 Test Descriptions
 [[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/20/input)]
 
   This test case uses a preliminary ENDF/B-VII.1 evaluation for <sup>35</sup>Cl, which uses the advanced Reich-Moore-Limited format for the resonances.  This allows more complex covariances to be represented.  In this case, covariances involving the (n,p) reaction are calculated.
+
+## Test Problem 21
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/21/input)]
+ 
+  This test case was developed to check if NaNs were "calculated" in `PURR`. This problem was discovered by Dave Brown and Paul Romano and was fixed in [Pull Request 18](https://github.com/njoy/NJOY2016/pull/18). This test was created in an attempt to prevent this from happening again. (No guarantees.)
+
+## Test Problem 22
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/22/input)]
+
+  This test is the LEAPR input for para H2 at 20 K from ENDF/B-VIII.0-beta4. The test checks the compatibility between the skold and coldh subroutines.
+
+## Test Problem 23
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/23/input)]
+
+  This test is the LEAPR input for BeO from ENDF/B-VI.8. The test checks the ability to process materials with secondary scatterers.
+
+## Test Problem 24
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/24/input)]
+
+  This test is essentially a standard NJOY input file for producing a continuous energy ACE file for Pu239 (it should be noted that `UNRESR` and `PURR` are omitted from this input file due to runtime constraints). The Pu239 evaluation associated to this test contains tabulated fission energy components in MF1 MT458 (a new format made available for ENDF/B-VIII.0). This test was designed to test this new feature in `HEATR`. This test also runs a double heatr run to detect the issue of reallocating arrays in a double heatr run encountered with NJOY 2016.21.
+
+## Test Problem 25
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/25/input)]
+
+  This test is essentially a standard NJOY input file for producing continuous energy thermal scattering ACE files for H in H2O. This test produces three ACE files, one for each iwt option value in `ACER`. This test is made in preparation of a fix proposed by D. Roubtsov to solve issues with cosines outside the [-1,1] range produced by `ACER` for thermal scattering files.
+
+## Test Problem 26
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/26/input)]
+
+  This test is used to check heatr results using an ENDF file without an MT458 section (fission energy release components) in MF1. This test was added in response to an issue introduced in NJOY 2016.21 involving such ENDF files.
+
+## Test Problem 27
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/27/input)]
+
+  This test is used to complete testing for the `ERRORR` module when processing MF35 covariances. Test 18 already has a test for this, but it uses an evaluation with a single covariance energy range (between 0 and 20 MeV). This test uses a Pu239 evaluation in which MF35 is composed of multiple covariance ranges. `ERRORR` is called twice in this run, once for the second range (between 5 and 6.5 MeV) and a second time using the -1 option with an efmean equal to 5.75 MeV (which should also be the second range). Both `ERRORR` runs should give the same results.
+
+## Test Problem 28
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/28/input)]
+
+  This test is used to test some of the options available to users when processing continuous energy data (iopt=1). There are currently three options (all defaulted to 1) concerning the user of law 61, whether or not detailed photons should be used and whether or not delayed neutron distributions should be smoothed to lower energies. The test consists of running `ACER` three times: once with the options defaulted, once with all options set to 1 explicitly and once with all options set to 0 explicitly. The first two ACE files should be identical.
+
+## Test Problem 29
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/29/input)]
+
+  This test is similar to test 28, but this one is for the smoothing option in `GROUPR`. The test consists of running `GROUPR` three times: once with the default smoothing option, once with the option set to 1 explicitly and once with the option set to 0 explicitly. The first two GENDF files should be identical.
+
+## Test Problem 30
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/30/input)]
+
+  This test is an addition to test 3 using `MATXSR`. While test 3 only uses photons, test 30 uses both neutrons and photons.
+
+## Test Problem 31
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/31/input)]
+
+  This test runs `PURR` for Pu240 from ENDF/B-VIII.0. This evaluation is one of the few that still gave negative cross sections in the probability tables for ENDF/B-VIII.0. In most cases, this behaviour is due to the fact that the original evaluation has an LSSF flag of 0 (MF3 contains background cross sections) and those background cross sections in the unresolved resonance region are negative (an example would be Na22). In the case of Pu240 however, the LSSF flag is set to 1 (MF3 contains the actual cross sections and the unresolved resonances should only be used for self-shielding). The negative cross section values in the probability table for this nuclide were due to the fact that the total cross section was actually lower than its components.
+
+## Test Problem 32
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/32/input)]
+
+  This test runs `THERMR` for each formatting option available for thermal scattering, being (E, E', μ) or (E, μ, E').
+
+## Test Problem 33
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/33/input)]
+
+  This test runs `LEAPR` for D(D2O) and O(D2O) from ENDF/B-VIII.0 at 283.0 K. These evaluations include the Skold approximation, which in the past had conflicts with the COLDH subroutine. The test also checks the capacity of running several instances of LEAPR in the same input file.
+
+## Test Problem 34
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/34/input)]
+
+  This test is added following a problem encountered when running `ERRORR` using a binary input ENDF and GENDF file. The `ERRORR` run crashed with a segmentation fault prior to NJOY 2016.34.
+
+## Test Problem 35-42
+
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/35/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/36/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/37/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/38/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/39/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/40/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/41/input)]
+[[input](https://raw.githubusercontent.com/njoy/NJOY2016/master/test/42/input)]
+
+  Tests 35 to 42 were added to test the inelastic and absorption competition flags determined by `PURR` and used in `ACER` to be included in ACE files. Previous versions of NJOY 2016 (prior to 2016.30) incorrectly handled these flags. NJOY only tested competition up to MT102 (neutron capture) and explicitly omitted checking reactions like MT103 (n,p) or MT107 (n,a). As a result, for some nuclides NJOY did not capture the competition flags properly, leading MCNP or other codes using probability tables to incorrectly calculate the total cross section in the unresolved resonance region.
+
+  The tests cover all possible combinations of the competition flags (no competition, only inelastic competition, only absorption competition and both) for each possible value of the LSSF flag (0 or 1). These tests are related to test 31.
+

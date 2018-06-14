@@ -10,12 +10,16 @@ if [ "$TRAVIS_OS_NAME" = "linux" ]; then
        --slave /usr/bin/gcc-ranlib ranlib /usr/bin/gcc-ranlib-6
   sudo update-alternatives --config gcc
   export CUSTOM=('-D CMAKE_AR=/usr/bin/gcc-ar' '-D CMAKE_NM=/usr/bin/gcc-nm' '-D CMAKE_RANLIB=/usr/bin/gcc-ranlib')
+else
+  export CUSTOM=("-D no_link_time_optimization=TRUE")
 fi
+
+export FC=$(which gfortran)
 
 mkdir build
 cd build
 cmake ${CUSTOM[@]}\
-      -D build_type=$build_type \
+      -D CMAKE_BUILD_TYPE=$build_type \
       -D static_libraries=$static_libraries \
       -D appended_flags="$appended_flags" ..
 make -j2
@@ -33,6 +37,7 @@ then
 fi
 if [ "$build_type" = "coverage" ]
 then
+  pip install --upgrade pip
   pip install --user cpp-coveralls
   echo "loading coverage information"
   coveralls  --exclude-pattern "/usr/include/.*|.*/CMakeFiles/.*|.*subprojects.*|.*dependencies.*|.*test\.cpp" --root ".." --build-root "." --gcov-options '\-lp'

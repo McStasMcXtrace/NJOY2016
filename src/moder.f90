@@ -418,7 +418,7 @@ contains
    integer::nin,nout,nscr
    real(kr)::a(*)
    ! internals
-   integer::nx,ns,i,npr,j,lep1,lnd,lnp,ns457,nb,nw,ng,ng460
+   integer::nx,ns,i,npr,j,lep1,lnd,lnp,ns457,nb,nw,ng,ng460,lfc,nfc,lo,nply
 
    !--hollerith descriptive data and tape dictionary.
    if (mth.eq.451) then
@@ -528,11 +528,31 @@ contains
 
    !--components of energy release due to fission.
    else if (mth.eq.458) then
+      lfc=l2h
+      nfc=n2h
       call listio(nin,nout,nscr,a,nb,nw)
+      nply=l2h
+      do while (nb.ne.0)
+         call moreio(nin,nout,nscr,a,nb,nw)
+      enddo
+      if (lfc.eq.1) then
+         if (nply.ne.0) then
+            call error('file1','bad NPLY in mt=458.',' ')
+         endif
+         do i=1,nfc
+            call tab1io(nin,nout,nscr,a,nb,nw)
+            do while (nb.ne.0)
+               call moreio(nin,nout,nscr,a,nb,nw)
+            enddo
+         enddo
+      else if (lfc.ne.0) then
+         call error('file1','bad LFC in mt=458.',' ')
+      endif
 
    !--beta-delayed photon spectra
    else if (mth.eq.460) then
-      if (l1h.eq.1) then
+      lo=l1h
+      if (lo.eq.1) then
          ng460=n1h
          do ng=1,ng460
             call tab1io(nin,nout,nscr,a,nb,nw)
@@ -540,7 +560,7 @@ contains
                call moreio(nin,nout,nscr,a,nb,nw)
             enddo
          enddo
-      else if (l2h.eq.2) then
+      else if (lo.eq.2) then
          call listio(nin,nout,nscr,a,nb,nw)
       else
          call error('file1','bad LO in mt=460.',' ')
@@ -887,6 +907,7 @@ contains
    real(kr)::a(*)
    ! internals
    integer::nk,ik,law,ne,ie,nmu,imu,nb,nw
+   character(60)::strng
 
    nk=n1h
    do ik=1,nk
@@ -919,6 +940,11 @@ contains
                enddo
             enddo
          enddo
+      else if (law.lt.0) then
+         if (mth.ne.18) then
+            write(strng,'(''illegal endf6 law for mt='',i3)') mth
+            call error('file6',strng,' ')
+         endif
       else if (law.ne.0.and.law.ne.3.and.law.ne.4) then
          call error('file6','illegal endf6 law.',' ')
       endif
@@ -959,7 +985,7 @@ contains
                ia1(i)=nint(a(ii))
             enddo
          elseif (it2.gt.3) then
-            call error('file7','NS>3',' ')
+            call error('file7','bad NS in mt=4.',' ')
          endif
       endif
       do while (nb.ne.0)
@@ -1146,8 +1172,9 @@ contains
    integer::lo,nk,nkp,k,nb,nw,ng,ng460
 
    !--special path for beta delayed gammas (mt=460)
+   lo=l1h
    if (mfh.eq.12.and.mth.eq.460) then
-      if (l1h.eq.1) then
+      if (lo.eq.1) then
          ng460=n1h
          do ng=1,ng460+1
             call tab1io(nin,nout,nscr,a,nb,nw)
@@ -1155,15 +1182,17 @@ contains
                call moreio(nin,nout,nscr,a,nb,nw)
             enddo
          enddo
-      else if (l2h.eq.2) then
+      else if (lo.eq.2) then
          call listio(nin,nout,nscr,a,nb,nw)
+         do while (nb.ne.0)
+            call moreio(nin,nout,nscr,a,nb,nw)
+         enddo
       else
          call error('file12','bad LO in mt=460.',' ')
       endif
 
    !--normal path for other mf1x formats
    else
-      lo=l1h
       if (lo.ne.2) then
          nk=n1h
          nkp=nk+1
@@ -1412,7 +1441,7 @@ contains
                     call mess('file32','1illegal value of ndigit',&
                               'set default, ndigit=2')
                   else
-                    call error('file32','1illegal value of ndigit',' ')
+                    call error('file32','illegal value of ndigit',' ')
                   endif
                endif
                do k=1,nn
@@ -1467,7 +1496,7 @@ contains
                     call mess('file32','2illegal value of ndigit',&
                               'set default, ndigit=2')
                   else
-                    call error('file32','2illegal value of ndigit',' ')
+                    call error('file32','illegal value of ndigit',' ')
                   endif
                endif
                do k=1,nn

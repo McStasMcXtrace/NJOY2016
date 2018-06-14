@@ -12,12 +12,14 @@ module leapm
    integer::iprint
    integer::nphon
    integer::mat
+   real(kr)::smin
    real(kr)::za
    real(kr)::awr
    real(kr)::spr
    integer::npr
    integer::iel
    integer::nss
+   integer::ncold,nsk
    real(kr)::b7
    real(kr)::aws
    real(kr)::sps
@@ -34,6 +36,7 @@ module leapm
    integer::nka
    real(kr)::dka
    real(kr),dimension(:),allocatable::ska
+   real(kr)::cfrac
 
    ! other global variables for module
    integer::naint,nbint
@@ -130,6 +133,7 @@ contains
    !    za      1000*z+a for principal scatterer
    !    isabt   sab type (0=s, 1=ss, def=0)
    !    ilog    log flag (0=s, 1=log10(s), def=0)
+   !    smin    minimum S(alpha, beta) stored in file (def=1e-75)
    !
    ! card 5 - principal scatterer control
    !    awr     weight ratio to neutron for principal scatterer
@@ -196,13 +200,13 @@ contains
    !    card 15 - oscillator energies (ev)
    !    card 16 - oscillator weights (sum to 1.-tbeta-twt)
    !
-   !    card 17 - pair correlation control (nsk.ne.0 only)
+   !    card 17 - pair correlation control (nsk.ne.0 .or. ncold.ne.0)
    !       nka     number of kappa values
    !       dka     kappa increment (inv. angstroms)
    !
    !    card 18  skappa values in increasing order (inv. ang.)
    !
-   !    card 19  coherent scattering fraction for nsk.eq.2 only
+   !    card 19 - coherent scattering fraction (nsk.ne.0)
    !       cfrac   coherent fraction
    !
    ! card 20 - file 1 comments, repeat until blank line is read.
@@ -212,11 +216,11 @@ contains
    use physics ! provides bk (boltzmann constant)
    use util    ! provides timer,openz,error,mess
    ! internals
-   integer::itemp,idone,i,ntempr,isabt,ilog,ncold,nsk,ni,nedge
+   integer::itemp,idone,i,ntempr,isabt,ilog,ni,nedge
    integer::isym,mscr,maxb,isecs
    real(kr)::time
    character(4)::title(20)
-   real(kr)::temp,emax,cfrac
+   real(kr)::temp,emax
    character::text*80
    real(kr),dimension(:),allocatable::bragg
    real(kr),dimension(:),allocatable::scr
@@ -239,7 +243,8 @@ contains
    read(nsysi,*) ntempr,iprint,nphon
    isabt=0
    ilog=0
-   read(nsysi,*) mat,za,isabt,ilog
+   smin=1.0e-75_kr
+   read(nsysi,*) mat,za,isabt,ilog,smin
    write(nsyso,'(/&
      &  '' no. of temperatures .................. '',i10/&
      &  '' print flag ........................... '',i10/&
@@ -247,8 +252,9 @@ contains
      &  '' endf mat number ...................... '',i10/&
      &  '' za ................................... '',i10/&
      &  '' isabt ................................ '',i10/&
-     &  '' ilog ................................. '',i10)')&
-     &  ntempr,iprint,nphon,mat,nint(za),isabt,ilog
+     &  '' ilog ................................. '',i10/&
+     &  '' smin.................. ............... '',es10.3)')&
+     &  ntempr,iprint,nphon,mat,nint(za),isabt,ilog,smin
    if (isabt.ne.0) write(nsyso,'(/&
      &''*** Warning.  isabt=1 pendf tapes CANNOT be processed '',&
      &''by the NJOY THERMR module ***'')')
@@ -293,9 +299,10 @@ contains
 
    !--allocate storage for ssm (and ssp if needed)
    allocate(ssm(nbeta,nalpha,ntempr))
-   if (nsk.ne.0) allocate(ssp(nbeta,nalpha,ntempr))
+   if (ncold.ne.0) allocate(ssp(nbeta,nalpha,ntempr))
 
-   !--allocate storage for dwpix, dwp1, tempf and tempf1
+   !--allocate storage for tempr, dwpix, dwp1, tempf and tempf1
+   allocate(tempr(ntempr))
    allocate(dwpix(ntempr))
    allocate(dwp1(ntempr))
    allocate(tempf(ntempr))
@@ -312,7 +319,6 @@ contains
          write(nsyso,'(/'' secondary scatterer...''/&
            &'' input alpha values divided by'',f7.3)') arat
       endif
-      allocate(tempr(ntempr))
       do itemp=1,ntempr
          read(nsysi,*) temp
          tempr(itemp)=abs(temp)
@@ -340,7 +346,7 @@ contains
             endif
 
             !--read in pair correlation function, s_kappa
-            if (nsk.gt.0) then
+            if ((nsk.gt.0).or.(ncold.gt.0)) then
                read(nsysi,*) nka,dka
                if (allocated(ska)) deallocate(ska)
                allocate(ska(nka))
@@ -353,7 +359,7 @@ contains
             endif
 
             !--read in coherent fraction for skold method
-            if (nsk.eq.2) read(nsysi,*) cfrac
+            if (nsk.gt.0) read(nsysi,*) cfrac
 
          endif
 
@@ -367,10 +373,11 @@ contains
          if (nd.gt.0) call discre(itemp)
 
          !--check for special hydrogen and deuterium options
-         if (ncold.gt.0) call coldh(ncold,itemp,temp)
+          if (ncold.gt.0) call coldh(itemp,temp)
 
          !--check for skold option for correlations
-         if (nsk.eq.2) call skold(cfrac,itemp,temp,ssm,nalpha,nbeta,ntempr)
+          if ((nsk.eq.2) .and. (ncold.eq.0))&
+             call skold(itemp,temp,ssm,nalpha,nbeta,ntempr)
 
       !--continue temperature loop
       enddo
@@ -413,6 +420,8 @@ contains
    deallocate(tempr)
    deallocate(p1)
    deallocate(ssm)
+   deallocate(scr)
+   if (allocated(ssp)) deallocate(ssp)
    deallocate(alpha)
    deallocate(beta)
    deallocate(dwpix)
@@ -731,7 +740,8 @@ contains
    ! internals
    integer::i
    real(kr)::bt,btp
-
+   terpt=0
+   if (be.gt.ntn*delta) return
    i=int(be/delta)
    if (i.lt.ntn-1) then
       bt=i*delta
@@ -1092,8 +1102,8 @@ contains
    real(kr),parameter::zero=0
 
    terps=0
+   if (be.gt.delta*nsd) return
    i=int(be/delta)
-   if (i.lt.0) return
    if (i.lt.nsd-1) then
       bt=i*delta
       btp=bt+delta
@@ -1884,7 +1894,7 @@ contains
    return
    end function sint
 
-   subroutine coldh(nd,itemp,temp)
+   subroutine coldh(itemp,temp)
    !--------------------------------------------------------------------
    ! Convolve the current solid-type and/or diffusive S(alpha,beta)
    ! with discrete rotational modes for ortho or para hydrogen or
@@ -1899,7 +1909,7 @@ contains
    use mainio  ! provides nsyso
    use util    ! provides timer
    ! externals
-   integer::nd,itemp
+   integer::itemp
    real(kr)::temp
    ! internals
    real(kr)::time,tev,sc,de,x,amassm,bp,sampc,sampi
@@ -1945,7 +1955,7 @@ contains
    tev=bk*abs(temp)
    sc=1
    if (lat.eq.1) sc=therm/tev
-   law=nd+1
+   law=ncold+1
    de=deh
    if (law.gt.3) de=ded
    x=de/tev
@@ -2401,14 +2411,14 @@ contains
    integer::i
    real(kr)::bt,btp
 
+   terpk=1
+   if (be.gt.nka*delta) return   
    i=int(be/delta)
    if (i.lt.nka-1) then
       bt=i*delta
       btp=bt+delta
       i=i+1
       terpk=ska(i)+(be-bt)*(ska(i+1)-ska(i))/(btp-bt)
-   else
-      terpk=1
    endif
    return
    end function terpk
@@ -2761,7 +2771,7 @@ contains
 
    end subroutine coher
 
-   subroutine skold(cfrac,itemp,temp,ssm,nalpha,nbeta,ntempr)
+   subroutine skold(itemp,temp,ssm,nalpha,nbeta,ntempr)
    !--------------------------------------------------------------------
    ! use skold approximation to add in the effects
    ! of intermolecular coherence.
@@ -2771,7 +2781,7 @@ contains
    use endf    ! provides terp1
    ! externals
    integer::itemp,nalpha,nbeta,ntempr
-   real(kr)::cfrac,temp
+   real(kr)::temp
    real(kr)::ssm(nbeta,nalpha,ntempr)
    ! internals
    integer::i,j,k,kk,nal,ibeta,iprt,jprt
@@ -2780,6 +2790,7 @@ contains
    real(kr)::scoh(1000)
    real(kr),parameter::angst=1.e-8_kr
    real(kr),parameter::therm=.0253e0_kr
+   real(kr),parameter::zero=0.0
 
    !--apply the skold approximation
    tev=bk*abs(temp)
@@ -2797,8 +2808,12 @@ contains
             if (ap.lt.alpha(k)) exit
          enddo
          if (kk.eq.1) kk=2
+         if (ssm(i,kk-1,itemp).eq.zero.or.ssm(i,kk,itemp).eq.zero) then
+            scoh(j)=zero
+         else
          call terp1(alpha(kk-1),ssm(i,kk-1,itemp),&
            alpha(kk),ssm(i,kk,itemp),ap,scoh(j),5)
+         endif
          scoh(j)=scoh(j)*sk
       enddo
       do j=1,nalpha
@@ -2934,7 +2949,6 @@ contains
    equivalence(t(1),z(1))
    real(kr),parameter::small=1.e-9_kr
    real(kr),parameter::tiny=-999.e0_kr
-   real(kr),parameter::smin=2.0e-38_kr
    real(kr),parameter::tol=0.9e-7_kr
    real(kr),parameter::up=1.01e0_kr
    real(kr),parameter::therm=.0253e0_kr
@@ -3002,6 +3016,7 @@ contains
    math=1
    mfh=0
    mth=0
+   nsh=0
    text=' '
    read(text,'(16a4,a2)') (t(i),i=1,17)
    call tpidio(0,nout,nprnt,z,nb,nw)

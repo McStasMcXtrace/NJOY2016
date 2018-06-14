@@ -326,8 +326,10 @@ contains
                mcards(i)=0
             enddo
             call rdfil2(nrtot,intunr)
-            nsig=4
-            if (nmtres.gt.0) then
+            if (nmtres.eq.0) then
+               nsig=5
+            else
+               nsig=4
                write(nsyso,'(/''   samm resonance reactions:'',10i5)')&
                  (mmtres(i),i=1,nmtres)
                if (nmtres.gt.2) then
@@ -1346,6 +1348,7 @@ contains
    do while (nb.ne.0)
       call moreio(nin,0,0,res(jnow),nb,nw)
    enddo
+   lssf=l1h
    ne=n1h
    nls=n2h
    spin=c1h
@@ -4775,8 +4778,15 @@ contains
    in=in+1
    if (itype.eq.2.and.sn.le.small) then
       nneg=nneg+1
-      if (nneg.eq.1) call mess('emerge',&
-        'nonpositive elastic cross sections found.',' ')
+      if (nneg.eq.1) then
+         if (sn .le. 0.0) then
+            call mess('emerge',&
+            'nonpositive elastic cross sections found.',' ')
+         else
+            call mess('emerge',&
+            'tiny elastic cross sections replaced by the lower limit.',' ')
+         end if
+      endif
       sn=small
    endif
    sn=sigfig(sn,7,0)
